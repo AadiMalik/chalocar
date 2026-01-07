@@ -1,0 +1,2 @@
+"S.No","Date","Request Id","Trip start time","Trip end time","User Name","Driver Name","Company Name","Trip Status","Paid Status","Payment Option","Vehicle Type","Ride Type","Trip Time","Trip Distance","Driver Commission","Admin Commission","Total Amount"
+"1","04/02/2024","REQ_000014","-","-","Clust Customer","-","Individual","Cancelled","Not Paid","Card","Normal","Regular-Instant","0 Mins","0 Km","-","-","-"

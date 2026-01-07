@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "chalocars-driver-portal",
+  "private_key_id": "2d4349bc528957e76f63410f4501cd477f256dfe",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCpII7TF06Jqnbz\n9ddxPgYw/VXbrWg59jV85UMHU1jdm88mwTIh30KuYyqZ3LHd3Th82CmY/HxwDNDG\nhjfoMOme5cCp4as12QVxARBBH1+SKKGyAqwRWR2kKIob1/8yNFK5CZ0uMh7xrX1Q\nfNbKHWro9Pw+4uLgaSL/ssxTQXapMUy5Xq9ZZMnpLTiUZGPI6IV84JIa5k4Un8Xi\nTo3uxbt09ebYdyNSv73BAmQt/a9SUORRpk8Hn1dplE4Rpe64x51vqDDUx0hmKUuS\nTOKsE+TtjOC2ScsPa2NmqqyhgD3lePjdEDuzma8nQX+TFoOyjGQr+HFSkU37z9RZ\n5Adb47LfAgMBAAECggEALYB07JX4q1ERb9FUhUMKp2OBFfkxcWasPU3xGqdx4S1q\nLiMMOdC3P/OuIncd43MBH5WIm4BSelL4WHED2ZRPRlDJ5OqyBWq97Ak9Nkgajlgg\nKKRPZtty/hdqENOr9PXey6mqgCM78AmdDWqI3xfLC6Hdu42PPJEMuX6BOmUCZ8JL\nlhH2Z9f7nPwu8PwvEM22UTJM4fF0H2gZ1o1l0Bj53JNMIZWmvZyzPb5nMyyDSODe\nSzc2Lb2KVWBMUuMnBNcCg1IXbIwM50p7q3DmyEVGk8oTThx7+98oBxBlaETvNg3u\nen1lN1mjIdkLLlKVBOsxNP1xlY5G8MqymRtaN7U9AQKBgQDdJstegwlvy0O18Cu3\nfbgXutzW82Q82VSI8zlG+/MNhAyr0W1ql35VYYEH/LlKOpimdipYXbzzCkecwn/S\nP4boUjku0MF+CYRrfqAmfoh7VV72tyIWKyB53OxLmKkgLZP+epnM/Harv1Oussap\n0vdrZlRj44+39OtHrQGlUYpdCwKBgQDDxxyovQ8bFw/mV2Y0PF5SXJrB1F34072h\nTyb8LsZ0eyx4+2WX7dkXJaM0cga9hcWcdloG2mHPbCd/yC/03aMZFqFDFLK4bQfL\nUNIal8PhGZBO7jMs30CiXMlZPh7KKUz8Huv7p9JAVd1di8kQ0hrsOZSf+XZBBFBK\nLk7SMwKd/QKBgQCampxiHklilj9n2dc2F/Wy4TeyLcVNpMGsXB0WutxX/pC9LVPI\nyM/Q8LE73DnM4toExWclD6MgZXda575kRXUSxSikydv7OLwSShu7zYmsbypMYAq8\nZLn3d7LZxoe1rydfKGaNH5H2z3K5FtI7tvixZIBqtJOsjtRM723PHQoVsQKBgAIv\nyyYnVm/bBhZwi3ex5OvOlPvtP090Lf4LQEg4zYaniYugYzYbNf2IMhZ335NmVxq0\nR7Uj40vJzXcj6UU25Id3NT3mkUh2D0w6Dt61Kz7sZiw7hN7Pb41gs+8HPpjLdUyr\nm78n1LVbQCm3UfuaHSreScavpp57SdpKQh8e6ryRAoGABUmteHPAmt3Hh/+4EX3c\nsL6VN3g4c29L1+2LX+5zuIOV1zNzq1eqwbC1sp6Kmt3wRQuHbYKI9hcP9h1cx+CX\nYbSPcgHMsp/uT/0QIw55AJdBbG8dSg04Zg10qRU1a7+RcYWJ1KRnjIKkwAsxuwxW\ny3CJcTHP2zIt7NjBq2t20u4=\n-----END PRIVATE KEY-----\n",
+  "client_email": "firebase-adminsdk-fbsvc@chalocars-driver-portal.iam.gserviceaccount.com",
+  "client_id": "108632220649372673888",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40chalocars-driver-portal.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

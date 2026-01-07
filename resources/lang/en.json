@@ -1,0 +1,9 @@
+{
+    "trip_start_time": "Trip start time",
+    "trip_end_time": "Trip end time",
+    "view_pages. name": "View pages name",
+    "Mail Type already exists": "Mail type already exists",
+    "Please Complete the shape before submit": "Please complete the shape before submitting",
+    "Coordinates already exists with our exists zone": "Coordinates already exist within our existing zone",
+    "Coordinates already exists with our old zone": "Coordinates already exist within our old zone"
+}
