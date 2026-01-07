@@ -28,7 +28,7 @@ class AccountController extends ApiController
         if ($user->hasRole(Role::DRIVER)) {
 
             $driver_details = $user->driver;
-            $driver_documents = $driver_details->driverDocument; // Assuming this is a collection
+            $driver_documents = $driver_details->driverDocument??[]; // Assuming this is a collection
 
             $hasExpiredDocument = false;
 
