@@ -27,9 +27,7 @@ class EtaTransformer extends Transformer
      *
      * @var array
      */
-    protected array $availableIncludes = [
-
-    ];
+    protected array $availableIncludes = [];
 
     /**
      * A Fractal transformer.
@@ -38,312 +36,173 @@ class EtaTransformer extends Transformer
      */
     public function transform(ZoneType $zone_type)
     {
-        //dd('abhi');
-
         $pick_lat = request()->pick_lat;
         $pick_lng = request()->pick_lng;
         $drop_lat = request()->drop_lat;
         $drop_lng = request()->drop_lng;
 
-        $response =  [
+        $response = [
             'zone_type_id' => $zone_type->id,
             'name' => $zone_type->vehicleType->name,
-            'description'=> $zone_type->vehicleType->description,
-            'short_description'=> $zone_type->vehicleType->short_description,
-            'supported_vehicles'=> $zone_type->vehicleType->supported_vehicles,
-            'payment_type'=>$zone_type->payment_type,
-            'is_default'=>false,
+            'description' => $zone_type->vehicleType->description,
+            'short_description' => $zone_type->vehicleType->short_description,
+            'supported_vehicles' => $zone_type->vehicleType->supported_vehicles,
+            'payment_type' => $zone_type->payment_type,
+            'is_default' => $zone_type->zone->default_vehicle_type == $zone_type->type_id,
         ];
 
-        if ($zone_type->zone->default_vehicle_type==$zone_type->type_id) {
-            $response['is_default'] = true;
-        }
         if (!request()->has('vehicle_type')) {
             $response['icon'] = $zone_type->icon;
-            $response['type_id']=$zone_type->type_id;
+            $response['type_id'] = $zone_type->type_id;
         }
-        /**
-         * get prices from zone type
-         */
-        if (request()->ride_type==zoneRideType::RIDENOW) {
-            $ride_type = zoneRideType::RIDENOW;
-        } else {
-            $ride_type = zoneRideType::RIDELATER;
-        }
-        $coupon_detail = null;
 
+        // Ride type
+        $ride_type = request()->ride_type == zoneRideType::RIDENOW ? zoneRideType::RIDENOW : zoneRideType::RIDELATER;
+
+        // Promo code validation
+        $coupon_detail = null;
         if (request()->has('promo_code') && request()->input('promo_code')) {
             $coupon_detail = $this->validate_promo_code($zone_type->zone->service_location_id);
         }
+
         $type_prices = $zone_type->zoneTypePrice()->where('price_type', $ride_type)->first();
 
+        // Distance calculation including stops
         $distance_in_unit = 0;
-        $dropoff_time_in_seconds = 0;
+        $previous_lat = $pick_lat;
+        $previous_lng = $pick_lng;
 
-        if (request()->has('drop_lat') && request()->has('drop_lng') && request()->drop_lat) {
-
-            if(env('APP_FOR')=='demo'){
-
-                $distance = distance_between_two_coordinates($pick_lat,$pick_lng,$drop_lat,$drop_lng,'K');
-
-                $distance+=3;
-
-                $dropoff_distance_in_meters = $distance * 1000;
-
-
-                if($distance<2){
-                    $dropoff_time_in_seconds = 180;
-                }elseif ($distance > 2 && $distance <5) {
-                    $dropoff_time_in_seconds = 480;
-                }else{
-                    $dropoff_time_in_seconds=600;
-                }
-
-                 if(request()->has('stops') && request()->stops){
-
+        if (request()->has('stops') && request()->stops) {
             $requested_stops = json_decode(request()->stops);
+            foreach ($requested_stops as $stop) {
+                $segment_distance = distance_between_two_coordinates(
+                    $previous_lat,
+                    $previous_lng,
+                    $stop->latitude,
+                    $stop->longitude,
+                    'K'
+                );
 
-            foreach ($requested_stops as $key => $stop) {
+                $distance_in_unit += ($zone_type->zone->unit == 2)
+                    ? kilometer_to_miles($segment_distance)
+                    : $segment_distance;
 
-        if($key==0){
-
-                $distance = distance_between_two_coordinates($pick_lat,$pick_lng,$stop->latitude, $stop->longitude,'K');
-                $dropoff_distance_in_meters+= $distance * 1000;
-
-            if ($dropoff_distance_in_meters) {
-
-                $stop_distance_in_unit = $dropoff_distance_in_meters / 1000;
-                if ($zone_type->zone->unit==2) {
-                    $distance_in_unit+= kilometer_to_miles($stop_distance_in_unit);
-
-                }else{
-                    $distance_in_unit+=$stop_distance_in_unit;
-                }
+                $previous_lat = $stop->latitude;
+                $previous_lng = $stop->longitude;
             }
-
-
-            }else{
-
-                $distance = distance_between_two_coordinates($requested_stops[$key-1]->latitude, $requested_stops[$key-1]->longitude, $stop->latitude, $stop->longitude,'K');
-
-                $dropoff_distance_in_meters+= $distance * 1000;
-
-            if ($dropoff_distance_in_meters) {
-
-                $stop_distance_in_unit = $dropoff_distance_in_meters / 1000;
-                if ($zone_type->zone->unit==2) {
-                    $distance_in_unit+= kilometer_to_miles($stop_distance_in_unit);
-
-                }else{
-                    $distance_in_unit+=$stop_distance_in_unit;
-                }
-            }
-
-
-        if(request()->has('stops') && request()->stops){
-
-            $requested_stops = json_decode(request()->stops);
-
-            foreach ($requested_stops as $key => $stop) {
-
-            if($key==0){
-                $previous_pickup_dropoff = $this->db_query_previous_pickup_dropoff($pick_lat, $pick_lng, $stop->latitude, $stop->longitude);
-
-            $place_details = json_decode($previous_pickup_dropoff->json_result);
-
-            $dropoff_distance_in_meters+= get_distance_value_from_distance_matrix($place_details);
-
-            if ($dropoff_distance_in_meters) {
-
-                $stop_distance_in_unit = $dropoff_distance_in_meters / 1000;
-                if ($zone_type->zone->unit==2) {
-                    $distance_in_unit+= kilometer_to_miles($stop_distance_in_unit);
-
-                }else{
-                    $distance_in_unit+=$stop_distance_in_unit;
-                }
-            }
-
-
-            }else{
-
-            $previous_pickup_dropoff = $this->db_query_previous_pickup_dropoff($requested_stops[$key-1]->latitude, $requested_stops[$key-1]->longitude, $stop->latitude, $stop->longitude);
-
-            $place_details = json_decode($previous_pickup_dropoff->json_result);
-
-            $dropoff_distance_in_meters+= get_distance_value_from_distance_matrix($place_details);
-
-             if ($dropoff_distance_in_meters) {
-                $stop_distance_in_unit = $dropoff_distance_in_meters / 1000;
-                if ($zone_type->zone->unit==2) {
-                    $distance_in_unit+= kilometer_to_miles($stop_distance_in_unit);
-
-                }else{
-                    $distance_in_unit+=$stop_distance_in_unit;
-                }
-            }
-
-            }
-
-                }
-            }
-
-
-            }
-
-            }
-
-            }
-
-            }else{
-
-                // get previous place json or store current one
-            $previous_pickup_dropoff = $this->db_query_previous_pickup_dropoff($pick_lat, $pick_lng, $drop_lat, $drop_lng);
-
-            $place_details = json_decode($previous_pickup_dropoff->json_result);
-
-            $dropoff_distance_in_meters = get_distance_value_from_distance_matrix($place_details);
-
-            $dropoff_time_in_seconds = get_duration_value_from_distance_matrix($place_details);
-
-
-            }
-
-            if ($dropoff_distance_in_meters) {
-                $distance_in_unit = $dropoff_distance_in_meters / 1000;
-                if ($zone_type->zone->unit==2) {
-                    $distance_in_unit = kilometer_to_miles($distance_in_unit);
-
-                }
-            }
-
-
-
         }
 
-        $near_driver_status = 0; //its means there is no driver available
+        // Last segment to final dropoff
+        if ($drop_lat && $drop_lng) {
+            $segment_distance = distance_between_two_coordinates(
+                $previous_lat,
+                $previous_lng,
+                $drop_lat,
+                $drop_lng,
+                'K'
+            );
 
-        $driver_lat = $pick_lat;
-        $driver_lng = $pick_lng;
-        $near_driver = null;
+            $distance_in_unit += ($zone_type->zone->unit == 2)
+                ? kilometer_to_miles($segment_distance)
+                : $segment_distance;
+        }
+
+        // Dropoff time (demo env)
+        $dropoff_time_in_seconds = 0;
+        if (env('APP_FOR') == 'demo') {
+            if ($distance_in_unit < 2) {
+                $dropoff_time_in_seconds = 180;
+            } elseif ($distance_in_unit < 5) {
+                $dropoff_time_in_seconds = 480;
+            } else {
+                $dropoff_time_in_seconds = 600;
+            }
+        } else {
+            if ($drop_lat && $drop_lng) {
+                $previous_pickup_dropoff = $this->db_query_previous_pickup_dropoff($pick_lat, $pick_lng, $drop_lat, $drop_lng);
+                $place_details = json_decode($previous_pickup_dropoff->json_result);
+                $dropoff_time_in_seconds = get_duration_value_from_distance_matrix($place_details);
+            }
+        }
+
+        // User wallet
+        $user_balance = 0;
+        $user = auth()->user();
+        if ($user && !$user->hasRole(Role::DRIVER) && !$user->hasRole(Role::DISPATCHER)) {
+            $user_balance = $user->userWallet->amount_balance ?? 0;
+        }
+        $response['user_wallet_balance'] = $user_balance;
+
+        // Unit words
+        $unit_in_words = $zone_type->zone->unit == 1 ? 'KM' : 'MILES';
+        $translated_unit_in_words = $unit_in_words;
+
+        // Calculate fare
+        $ride = $this->calculateRideFares($distance_in_unit, $dropoff_time_in_seconds, $zone_type, $type_prices, $coupon_detail);
+
+        // Driver estimation
+        $near_driver_status = 0;
+        $driver_arival_estimation = "--";
         if (request()->has('drivers')) {
             $driver_data_with_distance = [];
             $driver_distance = [];
-            foreach (json_decode(request()->drivers) as $key => $driver) {
-                $driver_data = new \stdClass();
-                $driver_data->id = $driver->driver_id;
-                $driver_data->lat = $driver->driver_lat;
-                $driver_data->lng = $driver->driver_lng;
-                $driver_data->distance = self::calculate_distance(request()->pick_lat, request()->pick_lng, $driver->driver_lat, $driver->driver_lng, 'K');
-                $driver_data_with_distance []= $driver_data;
-                $driver_distance[] = $driver_data->distance;
+            foreach (json_decode(request()->drivers) as $driver) {
+                $distance = self::calculate_distance($pick_lat, $pick_lng, $driver->driver_lat, $driver->driver_lng, 'K');
+                $driver_data_with_distance[] = (object)[
+                    'id' => $driver->driver_id,
+                    'lat' => $driver->driver_lat,
+                    'lng' => $driver->driver_lng,
+                    'distance' => $distance
+                ];
+                $driver_distance[] = $distance;
             }
 
-            $min_distance_driver = min($driver_distance);
-
-            foreach ($driver_data_with_distance as $key => $driver_data) {
-                if ($min_distance_driver==$driver_data->distance) {
-                    $near_driver = $driver_data;
-                    break;
+            if (!empty($driver_distance)) {
+                $min_distance = min($driver_distance);
+                foreach ($driver_data_with_distance as $d) {
+                    if ($d->distance == $min_distance) {
+                        $near_driver_status = 1;
+                        $driver_arival_estimation = $ride->pickup_duration != 0 ? "{$ride->pickup_duration} min" : "1 min";
+                        break;
+                    }
                 }
             }
-
-            if ($near_driver==null) {
-                $driver_lat = $pick_lat;
-                $driver_lng = $pick_lng;
-            } else {
-                $driver_lat = $near_driver->lat;
-                $driver_lng = $near_driver->lng;
-                $near_driver_status=1;
-            }
         }
 
-        $user_balance = 0;
-
-// userWallet
-$user = auth()->user();
-    if($user!=null)
-    {
-        if(!auth()->user()->hasRole(Role::DRIVER) && !auth()->user()->hasRole(Role::DISPATCHER))
-        {
-
-
-
-        // $user_balance = $user->userWallet ? $user->userWallet->amount_balance : 0;
-
-        $user_balance =  $user->userWallet->amount_balance;
-        }
-
-    }
-
-
-        $response['user_wallet_balance'] = $user_balance;
-
-        // $response['user_wallet_balance'] = $user_balance;
-
-
-        // $driver_to_pickup = $this->db_query_previous_pickup_dropoff($driver_lat, $driver_lng, $pick_lat, $pick_lng);
-
-        // $driver_to_pickup_response = json_decode($driver_to_pickup->json_result);
-        if ($zone_type->zone->unit==1) {
-            $unit_in_words = 'KM';
-        } else {
-            $unit_in_words = 'MILES';
-        }
-        // $unit_in_words = EtaConstants::ENGLISH_UNITS[$zone_type->zone->unit];
-        $translated_unit_in_words = $unit_in_words;
-
-        $ride = $this->calculateRideFares($distance_in_unit, $dropoff_time_in_seconds, $zone_type, $type_prices, $coupon_detail);
-
-       // dd($ride);
-
-        if ($near_driver_status != 0) {
-            if ($ride->pickup_duration != 0) {
-                $driver_arival_estimation = "{$ride->pickup_duration} min";
-            } else {
-                $driver_arival_estimation = "1 min";
-            }
-        } else {
-            $driver_arival_estimation = "--";
-        }
-        $response['has_discount'] = false;
-        if ($ride->discount_amount > 0) {
-            $response['has_discount'] = true;
-            $response['discounted_totel'] = $ride->discounted_total_price;
-            $response['discount_total_tax_amount'] = $ride->discount_total_tax_amount;
-            $response['promocode_id'] = $coupon_detail->id;
-        }
-        $response['discount_amount'] = $ride->discount_amount;
-        $response['distance'] = $ride->distance;
-        $response['time'] = $ride->duration;
-        $response['base_distance'] = $ride->base_distance;
-        $response['base_price'] = $ride->base_price;
-        $response['price_per_distance'] = $ride->price_per_distance;
-        $response['price_per_time'] = $ride->price_per_time;
-        $response['distance_price'] = $ride->distance_price;
-        $response['time_price'] = $ride->time_price;
-        $response['ride_fare'] = $ride->subtotal_price;
-        $response['tax_amount'] = $ride->tax_amount;
-        $response['tax'] = $ride->tax_percent;
-        $response['total'] = $ride->total_price;
-        $response['approximate_value'] = 1;
-        $response['min_amount'] = $ride->total_price;
-        $response['max_amount'] = ($ride->total_price * 1.05);
-        $response['currency'] = $zone_type->zone->serviceLocation->currency_symbol;
-        $response['currency_name'] = $zone_type->zone->serviceLocation->currency_code;
-        $response['type_name'] = $zone_type->vehicleType->name;
-        $response['unit'] = $zone_type->zone->unit;
-        $response['unit_in_words_without_lang'] = $unit_in_words;
-        $response['unit_in_words'] = $translated_unit_in_words;
-        $response['driver_arival_estimation'] = $driver_arival_estimation;
-        // dd($ride);
-
-        // dd($previous_pickup_dropoff);
-
-
+        // Fill response
+        $response = array_merge($response, [
+            'has_discount' => $ride->discount_amount > 0,
+            'discounted_totel' => $ride->discounted_total_price,
+            'discount_total_tax_amount' => $ride->discount_total_tax_amount ?? 0,
+            'promocode_id' => $coupon_detail->id ?? null,
+            'discount_amount' => $ride->discount_amount,
+            'distance' => $ride->distance,
+            'time' => $ride->duration,
+            'base_distance' => $ride->base_distance,
+            'base_price' => $ride->base_price,
+            'price_per_distance' => $ride->price_per_distance,
+            'price_per_time' => $ride->price_per_time,
+            'distance_price' => $ride->distance_price,
+            'time_price' => $ride->time_price,
+            'ride_fare' => $ride->subtotal_price,
+            'tax_amount' => $ride->tax_amount,
+            'tax' => $ride->tax_percent,
+            'total' => $ride->total_price,
+            'approximate_value' => 1,
+            'min_amount' => $ride->total_price,
+            'max_amount' => ($ride->total_price * 1.05),
+            'currency' => $zone_type->zone->serviceLocation->currency_symbol,
+            'currency_name' => $zone_type->zone->serviceLocation->currency_code,
+            'type_name' => $zone_type->vehicleType->name,
+            'unit' => $zone_type->zone->unit,
+            'unit_in_words_without_lang' => $unit_in_words,
+            'unit_in_words' => $translated_unit_in_words,
+            'driver_arival_estimation' => $driver_arival_estimation
+        ]);
 
         return $response;
     }
+
 
     public function calculate_distance($lat1, $lon1, $lat2, $lon2, $unit)
     {
@@ -380,7 +239,7 @@ $user = auth()->user();
 
 
 
-        if($calculatable_distance < 0 ){
+        if ($calculatable_distance < 0) {
 
             $calculatable_distance = 0;
         }
@@ -396,16 +255,15 @@ $user = auth()->user();
 
         $current_time = $current_time->toTimeString();
 
-        $zone_surge_price = ZoneSurgePrice::whereZoneId($zone_type->zone_id)->whereTime('start_time','<=',$current_time)->whereTime('end_time','>=',$current_time)->first();
+        $zone_surge_price = ZoneSurgePrice::whereZoneId($zone_type->zone_id)->whereTime('start_time', '<=', $current_time)->whereTime('end_time', '>=', $current_time)->first();
 
-        if($zone_surge_price){
+        if ($zone_surge_price) {
 
             $surge_percent = $zone_surge_price->value;
 
             $surge_price_additional_cost = ($price_per_distance * ($surge_percent / 100));
 
             $price_per_distance += $surge_price_additional_cost;
-
         }
 
         //New Price Calculation Starts
@@ -416,40 +274,38 @@ $user = auth()->user();
         $zones_b = $type_prices->zone_b;
         $zones_c = $type_prices->zone_c;
 
-        if($zones_a && $zones_b && $zones_c){
+        if ($zones_a && $zones_b && $zones_c) {
 
-            $zones_a = explode(',',$zones_a);
-            $zones_b = explode(',',$zones_b);
-            $zones_c = explode(',',$zones_c);
+            $zones_a = explode(',', $zones_a);
+            $zones_b = explode(',', $zones_b);
+            $zones_c = explode(',', $zones_c);
 
-            if($calculatable_distance > $zones_c[0]){
+            if ($calculatable_distance > $zones_c[0]) {
                 $zone_c_distance = $zone_calculatable_distance - $zones_c[0];
                 $zone_c_charges = ($zone_c_distance * $zones_c[2]);
                 $zones_total_charges += $zone_c_charges;
 
-                 $zone_calculatable_distance -= $zone_c_distance;
+                $zone_calculatable_distance -= $zone_c_distance;
             }
-            if($calculatable_distance > $zones_b[0]){
+            if ($calculatable_distance > $zones_b[0]) {
                 $zone_b_distance = $zone_calculatable_distance - $zones_b[0];
                 $zone_b_charges = ($zone_b_distance * $zones_b[2]);
                 $zones_total_charges += $zone_b_charges;
-               // return $zones_total_charges;
+                // return $zones_total_charges;
                 $zone_calculatable_distance -= $zone_b_distance;
             }
-            if($calculatable_distance > $zones_a[0]){
+            if ($calculatable_distance > $zones_a[0]) {
                 $zone_a_distance = $zone_calculatable_distance - $zones_a[0];
                 $zone_a_charges = ($zone_a_distance * $zones_a[2]);
                 $zones_total_charges += $zone_a_charges;
                 $zone_calculatable_distance -= $zone_a_distance;
             }
-            if($calculatable_distance > $zones_a[0]){
+            if ($calculatable_distance > $zones_a[0]) {
                 $zones_total_charges += $type_prices->base_price;
             }
-            if($calculatable_distance < $zones_a[0]){
+            if ($calculatable_distance < $zones_a[0]) {
                 $zones_total_charges += $type_prices->base_price;
             }
-
-
         }
         //New Price Calculation Ends
 
@@ -465,12 +321,12 @@ $user = auth()->user();
 
 
         // additon of base and distance price
-//        $base_and_distance_price = ($base_price + $distance_price);
+        //        $base_and_distance_price = ($base_price + $distance_price);
         //New Price Calculation Starts
         $base_and_distance_price = $zones_total_charges;
         //New Price Calculation Ends
 
-       // return $base_and_distance_price;
+        // return $base_and_distance_price;
 
 
         $base_distance = $type_prices->base_distance;
@@ -481,7 +337,7 @@ $user = auth()->user();
         //$subtotal_price = $base_and_distance_price + $time_price;
         //$discount_amount = 0;
         //$coupon_applied_sub_total = $base_and_distance_price + $time_price;
-       /* if ($coupon_detail) {
+        /* if ($coupon_detail) {
             if ($coupon_detail->minimum_trip_amount < $subtotal_price) {
                 $discount_amount = $subtotal_price * ($coupon_detail->discount_percent/100);
                 if ($coupon_detail->maximum_discount_amount>0 && $discount_amount > $coupon_detail->maximum_discount_amount) {
@@ -498,11 +354,11 @@ $user = auth()->user();
         $discount_amount = 0;
         if ($coupon_detail) {
             if ($coupon_detail->minimum_trip_amount < $subtotal_price) {
-                $discount_amount = $subtotal_price * ($coupon_detail->discount_percent/100);
-                if ($coupon_detail->maximum_discount_amount>0 && $discount_amount > $coupon_detail->maximum_discount_amount) {
+                $discount_amount = $subtotal_price * ($coupon_detail->discount_percent / 100);
+                if ($coupon_detail->maximum_discount_amount > 0 && $discount_amount > $coupon_detail->maximum_discount_amount) {
                     $discount_amount = $coupon_detail->maximum_discount_amount;
                 }
-              //  $coupon_applied_sub_total = $subtotal_price - $discount_amount;
+                //  $coupon_applied_sub_total = $subtotal_price - $discount_amount;
             }
         }
 
@@ -519,8 +375,7 @@ $user = auth()->user();
         // $service_fee = get_settings('admin_commission');
         $service_fee = $zone_type->admin_commision;
 
-        if(($zone_type->admin_commission_type) == 1)
-        {
+        if (($zone_type->admin_commission_type) == 1) {
             Log::info("inside");
             $service_fee  = ($coupon_applied_sub_total * ($service_fee / 100));
         }
@@ -556,25 +411,25 @@ $user = auth()->user();
         $duration = $pickup_duration + $dropoff_duration + $wait_duration;
 
         return (object)[
-                'distance' => round($distance_in_unit, 2),
-                'base_distance' => $base_distance,
-                'base_price' => $base_price,
-                'price_per_distance' => $type_prices->price_per_distance,
-                'price_per_time' => $type_prices->price_per_time,
-                'distance_price' => $distance_price,
-                'time_price' => $time_price,
-                'subtotal_price' => $subtotal_price,
-                'tax_percent' => $tax_percent,
-                'tax_amount' => $with_out_discount_tax_amount,
-                'discount_total_tax_amount'=>$discount_tax_amount,
-                'total_price' => $total_price,
-                'discounted_total_price'=>$discounted_total_price,
-                'discount_amount'=>$discount_amount,
-                'pickup_duration' => round($pickup_duration),
-                'dropoff_duration' => round($dropoff_duration),
-                'wait_duration' => round($wait_duration),
-                'duration' => round($duration),
-            ];
+            'distance' => round($distance_in_unit, 2),
+            'base_distance' => $base_distance,
+            'base_price' => $base_price,
+            'price_per_distance' => $type_prices->price_per_distance,
+            'price_per_time' => $type_prices->price_per_time,
+            'distance_price' => $distance_price,
+            'time_price' => $time_price,
+            'subtotal_price' => $subtotal_price,
+            'tax_percent' => $tax_percent,
+            'tax_amount' => $with_out_discount_tax_amount,
+            'discount_total_tax_amount' => $discount_tax_amount,
+            'total_price' => $total_price,
+            'discounted_total_price' => $discounted_total_price,
+            'discount_amount' => $discount_amount,
+            'pickup_duration' => round($pickup_duration),
+            'dropoff_duration' => round($dropoff_duration),
+            'wait_duration' => round($wait_duration),
+            'duration' => round($duration),
+        ];
     }
 
 
@@ -644,16 +499,16 @@ $user = auth()->user();
 
         if ($distance_matrix && $distance_matrix->status == 'OK') {
             $distance_matrix_params = [
-                'origin_addresses'=>$distance_matrix->origin_addresses[0],
-                'origin_lat'=>$pick_lat,
-                'origin_lng'=>$pick_lng,
-                'destination_addresses'=>$distance_matrix->destination_addresses[0],
-                'destination_lat'=>$drop_lat,
-                'destination_lng'=>$drop_lng,
-                'distance'=> get_distance_text_from_distance_matrix($distance_matrix)==null?0:get_distance_text_from_distance_matrix($distance_matrix),
-                'duration'=> get_duration_text_from_distance_matrix($distance_matrix)==null?0:get_duration_text_from_distance_matrix($distance_matrix),
-                'json_result'=> \GuzzleHttp\json_encode($distance_matrix)
-                ];
+                'origin_addresses' => $distance_matrix->origin_addresses[0],
+                'origin_lat' => $pick_lat,
+                'origin_lng' => $pick_lng,
+                'destination_addresses' => $distance_matrix->destination_addresses[0],
+                'destination_lat' => $drop_lat,
+                'destination_lng' => $drop_lng,
+                'distance' => get_distance_text_from_distance_matrix($distance_matrix) == null ? 0 : get_distance_text_from_distance_matrix($distance_matrix),
+                'duration' => get_duration_text_from_distance_matrix($distance_matrix) == null ? 0 : get_duration_text_from_distance_matrix($distance_matrix),
+                'json_result' => \GuzzleHttp\json_encode($distance_matrix)
+            ];
 
             return $stored_distance_matrix_details = DistanceMatrix::create($distance_matrix_params);
         } else {
@@ -671,7 +526,7 @@ $user = auth()->user();
         // Validate if the promo is expired
         $current_date = Carbon::today()->toDateTimeString();
 
-        $expired = Promo::where('code', $promo_code)->where('to', '>', $current_date)->where('service_location_id', $service_location)->where('active',true)->first();
+        $expired = Promo::where('code', $promo_code)->where('to', '>', $current_date)->where('service_location_id', $service_location)->where('active', true)->first();
 
         if (!$expired) {
             $this->throwCustomException('provided promo code expired or invalid');
